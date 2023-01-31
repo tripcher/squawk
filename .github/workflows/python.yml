@@ -100,8 +100,8 @@ jobs:
           path: dist
 
   linux:
-#    needs: pre_job
-#    if: needs.pre_job.outputs.should_skip != 'true'
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
 
     runs-on: ubuntu-latest
     strategy:
@@ -113,7 +113,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: "Setup ubuntu"
-        run: sudo apt-get install libssl-dev
+        run: export PKG_CONFIG_PATH=/usr/lib/x86_64-unknown-linux-gnu/pkgconfig
       - name: "Install latest rust toolchain"
         uses: actions-rs/toolchain@v1
         with:
