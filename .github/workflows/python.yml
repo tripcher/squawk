@@ -1,14 +1,14 @@
 name: Python
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
 
 env:
   PACKAGE_NAME: squawk_cli
   PYTHON_VERSION: "3.7" # to build abi3 wheels
-  CARGO_INCREMENTAL: 0
-  CARGO_NET_RETRY: 10
-  CARGO_TERM_COLOR: always
-  RUSTUP_MAX_RETRIES: 10
 
 jobs:
   maturin-build:
@@ -39,6 +39,54 @@ jobs:
           target: x86_64
           args: --release --out dist --sdist
       - name: "Install built wheel - x86_64"
+        run: |
+          pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
+      - name: "Upload wheels"
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist
+
+  macos-universal:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - name: "Build wheels - universal2"
+        uses: messense/maturin-action@v1
+        with:
+          args: --release --universal2 --out dist
+      - name: "Install built wheel - universal2"
+        run: |
+          pip install dist/${{ env.PACKAGE_NAME }}-*universal2.whl --force-reinstall
+      - name: "Upload wheels"
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist
+
+  linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x86_64, i686]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - name: "Build wheels"
+        uses: messense/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: auto
+          args: --release --out dist
+      - name: "Install built wheel"
+        if: matrix.target == 'x86_64'
         run: |
           pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
       - name: "Upload wheels"
