@@ -10,7 +10,7 @@ concurrency:
 
 env:
   PACKAGE_NAME: squawk_cli
-  PYTHON_VERSION: "3.8" # to build abi3 wheels
+  PYTHON_VERSION: "3.7" # to build abi3 wheels
 
 jobs:
   pre_job:
@@ -44,7 +44,7 @@ jobs:
       - run: pip install maturin
       - run: maturin build -b bin
 
-  macos-x86_64:
+  build-macos-x86_64:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
 
@@ -69,7 +69,7 @@ jobs:
           name: wheels
           path: dist
 
-  macos-universal:
+  build-macos-universal:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
 
@@ -99,21 +99,16 @@ jobs:
           name: wheels
           path: dist
 
-  linux:
+  build-linux:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
 
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target: [x86_64, i686]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: "Setup ubuntu"
-        run: export PKG_CONFIG_PATH=/usr/lib/x86_64-unknown-linux-gnu/pkgconfig
       - name: "Install latest rust toolchain"
         uses: actions-rs/toolchain@v1
         with:
@@ -123,13 +118,10 @@ jobs:
       - name: "Build wheels"
         uses: messense/maturin-action@v1
         with:
-          target: ${{ matrix.target }}
           manylinux: auto
           args: --release --out dist
       - name: "Install built wheel"
-        if: matrix.target == 'x86_64'
-        run: |
-          pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
+        run: pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
       - name: "Upload wheels"
         uses: actions/upload-artifact@v3
         with:
