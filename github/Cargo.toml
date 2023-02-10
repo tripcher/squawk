@@ -15,5 +15,6 @@ keywords = ["bot", "github", "linter"]
 jsonwebtoken = "*"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+openssl = { version = "0.10.40", features = ["vendored"] }
 reqwest = "0.9.18"
 log = "0.4.8"
