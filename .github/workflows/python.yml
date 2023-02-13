@@ -103,12 +103,17 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
+      - name:
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libclang-dev clang
+          version: 1.0
       - name: "Build wheels"
         uses: messense/maturin-action@v1
         with:
           target: x86_64
           manylinux: auto
-          args: --release --out dist
+          args: --release --out dist --sdist
       - name: "Install built wheel"
         run: pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
       - name: "Upload wheels"
