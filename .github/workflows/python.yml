@@ -1,0 +1,123 @@
+name: Python
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PACKAGE_NAME: squawk_cli
+  PYTHON_VERSION: "3.7" # to build abi3 wheels
+
+jobs:
+  pre_job:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+      paths_result: ${{ steps.skip_check.outputs.paths_result }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@c449d86cf33a2a6c7a4193264cc2578e2c3266d4
+        with:
+          paths_ignore: '["docs/**", "*.md"]'
+
+  build-maturin:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+
+    name: "maturin build"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Install latest rust toolchain"
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.60.0
+          default: true
+          override: true
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install maturin
+      - run: maturin build -b bin
+
+  build-macos:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - name: "Build wheels - x86_64"
+        uses: messense/maturin-action@v1
+        with:
+          target: x86_64
+          args: --release --out dist --sdist
+      - name: "Install built wheel - x86_64"
+        run: |
+          pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
+      - name: "Upload wheels"
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist
+
+#  build-macos-universal:
+#    needs: pre_job
+#    if: needs.pre_job.outputs.should_skip != 'true'
+#
+#    runs-on: macos-latest
+#    steps:
+#      - uses: actions/checkout@v3
+#      - uses: actions/setup-python@v4
+#        with:
+#          python-version: ${{ env.PYTHON_VERSION }}
+#      - name: "Build wheels - universal2"
+#        uses: messense/maturin-action@v1
+#        with:
+#          args: --release --universal2 --out dist
+#      - name: "Install built wheel - universal2"
+#        run: |
+#          pip install dist/${{ env.PACKAGE_NAME }}-*universal2.whl --force-reinstall
+#      - name: "Upload wheels"
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: wheels
+#          path: dist
+
+  build-linux:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - name:
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libclang-dev clang
+          version: 1.0
+      - name: "Build wheels"
+        uses: messense/maturin-action@v1
+        with:
+          target: x86_64
+          manylinux: auto
+          args: --release --out dist --sdist
+      - name: "Install built wheel"
+        run: pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
+      - name: "Upload wheels"
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist
